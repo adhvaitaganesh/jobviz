@@ -256,20 +256,85 @@ function showDetails({ role, impact, description }, block) {
   }
   window.addEventListener('pointerdown', removePopup);
 
-  // Camera: move to be orthogonal to the popup (top face normal, +Y) and 8 units away, looking at the popup center
+  // Camera: move to position the block in the center of the screen.
   const startPosition = camera.position.clone();
-  const targetPosition = topFaceCenter.clone().add(new THREE.Vector3(0, 8, 0));
+  const startLookAt = new THREE.Vector3();
+  camera.getWorldDirection(startLookAt); // Get current lookAt direction
+  startLookAt.add(camera.position); // Convert direction to world point
+
+  const targetLookAt = new THREE.Vector3();
+  block.getWorldPosition(targetLookAt); // Target lookAt is the center of the block
+
+  // Calculate the direction from the camera to the block's center.
+  const directionToBlock = new THREE.Vector3().subVectors(targetLookAt, camera.position).normalize();
+
+  // Calculate the target position for the camera.
+  // Move the camera 8 units away from the block along the view direction.
+  // We want the camera to look AT the block's center (targetLookAt)
+  // So, the camera's new position should be targetLookAt minus some distance along the desired viewing direction.
+  // For simplicity, let's maintain a similar distance as before, but ensure the block is centered.
+
+  const desiredDistance = 8; // Distance from camera to the block
+  // To center the block, the camera should look directly at it.
+  // The target position is 'desiredDistance' units away from the block's center,
+  // along the line of sight that will be established.
+
+  // We'll first set the camera to look at the block, then calculate the position.
+  // However, for smooth animation, we need a target position first.
+
+  // Let's calculate an ideal camera position.
+  // We want the camera to look at targetLookAt.
+  // The camera's forward vector should point towards targetLookAt.
+  // A simple approach is to place the camera at a fixed offset from the block,
+  // and then make it look at the block.
+
+  // New approach:
+  // 1. Determine the target look-at point (center of the block).
+  // 2. Determine a desired camera offset (e.g., maintain current camera orientation relative to world, or a fixed offset).
+  //    Let's try to keep the camera's current Y height and move it in XZ plane to align with the block, then adjust distance.
+
+  const targetPosition = new THREE.Vector3();
+  // Get the block's world position
+  block.getWorldPosition(targetPosition);
+
+  // We want the camera to look at `targetPosition` (the block's center).
+  // To position the block in the center of the screen, the camera's new position
+  // should be `targetPosition - (camera.getWorldDirection() * distance)`.
+  // However, getWorldDirection() depends on the current camera orientation.
+  // We need a stable direction.
+
+  // Let's try positioning the camera a fixed distance away from the block,
+  // but in a direction that makes sense (e.g., from its current position, moving towards the block).
+
+  const newCamPos = new THREE.Vector3();
+  // Calculate vector from current camera position to the block's center
+  const vecToBlock = new THREE.Vector3().subVectors(targetLookAt, startPosition).normalize();
+  // Set the new camera position by moving 'desiredDistance' away from the block along this vector (in reverse)
+  newCamPos.copy(targetLookAt).addScaledVector(vecToBlock.negate(), desiredDistance);
+
 
   let zoomProgress = 0;
-  const zoomDuration = 1.2;
+  const zoomDuration = 1.2; // seconds
+
   function zoomToBlock() {
-    zoomProgress += 0.015;
+    zoomProgress += 0.015; // Corresponds to roughly 60fps, adjust if clock.getDelta() is used
     const t = Math.min(zoomProgress / zoomDuration, 1);
-    const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-    camera.position.lerpVectors(startPosition, targetPosition, easeT);
-    camera.lookAt(topFaceCenter);
+    const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Quadratic ease in-out
+
+    camera.position.lerpVectors(startPosition, newCamPos, easeT);
+    camera.lookAt(targetLookAt); // Ensure camera always looks at the block's center
+
     if (zoomProgress < zoomDuration) {
       requestAnimationFrame(zoomToBlock);
+    } else {
+      // Ensure final state is precise
+      camera.position.copy(newCamPos);
+      camera.lookAt(targetLookAt);
+      // Synchronize OrbitControls target
+      if (controls) {
+        controls.target.copy(targetLookAt);
+        controls.update();
+      }
     }
   }
   zoomToBlock();
