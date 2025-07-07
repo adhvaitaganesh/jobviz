@@ -125,7 +125,8 @@ function onPointerDown(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(viz.group.children, false);
+  // Only intersect with the interactive blocks, not the decorative lines
+  const hits = raycaster.intersectObjects(viz.interactiveGroup.children, false);
   if (hits.length > 0) {
     const block = hits[0].object;
     animateBlock(block);

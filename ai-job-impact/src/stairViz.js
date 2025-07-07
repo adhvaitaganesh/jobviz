@@ -2,7 +2,12 @@ import * as THREE from 'three';
 
 export class StairViz {
   constructor(scene, data, settings = {}) {
-    const group = new THREE.Group();
+    this.group = new THREE.Group();
+    this.interactiveGroup = new THREE.Group();
+    this.decorativeGroup = new THREE.Group();
+
+    this.group.add(this.interactiveGroup);
+    this.group.add(this.decorativeGroup);
     
     // Helix parameters
     const radius = 8; // Radius of the helix
@@ -54,17 +59,16 @@ export class StairViz {
       // Store data
       mesh.userData = item;
       
-      group.add(mesh);
+      this.interactiveGroup.add(mesh); // Add blocks to interactiveGroup
     });
     
     // Create simple connecting lines between blocks
-    this.createConnectingLines(group, positions);
+    this.createConnectingLines(this.decorativeGroup, positions); // Pass decorativeGroup
     
-    this.group = group;
-    scene.add(group);
+    scene.add(this.group); // Add the main group to the scene
   }
   
-  createConnectingLines(group, positions) {
+  createConnectingLines(decorativeGroup, positions) { // Accept group as parameter
     // Add connecting lines between adjacent blocks
     for (let i = 0; i < positions.length - 1; i++) {
       const start = positions[i];
@@ -80,7 +84,7 @@ export class StairViz {
       });
       
       const line = new THREE.Line(lineGeometry, lineMaterial);
-      group.add(line);
+      decorativeGroup.add(line); // Add to the passed-in group
     }
     
     // Add a simple helical curve for visual emphasis
@@ -106,6 +110,6 @@ export class StairViz {
     });
     
     const curve = new THREE.Line(curveGeometry, curveMaterial);
-    group.add(curve);
+    decorativeGroup.add(curve); // Add to the passed-in group
   }
 }
